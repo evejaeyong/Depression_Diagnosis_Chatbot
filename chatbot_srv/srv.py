@@ -1,3 +1,4 @@
+import socket
 import re
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
@@ -94,70 +95,88 @@ def format_chat(messages):
     formatted_text += "챗봇: "  # 모델이 이 부분에만 응답을 추가하도록 유도
     return formatted_text.strip()
 
-num = 0
-message_count = 0  # 메시지 카운터 초기화
-depression_score = 0
+HOST = '127.0.0.1'
+PORT = 11111
 
-while True:
-    # 유저 입력 받기
-    user_input = input("You: ")
-    if user_input.lower() in ["exit", "quit", "종료"]:
-        print("Chatbot: 대화를 종료합니다.")
-        break
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+    num = 0
+    message_count = 0  # 메시지 카운터 초기화
+    depression_score = 0
 
-    message_count += 1  # 메시지 카운트 증가
+    s.bind((HOST, PORT))
+    s.listen()
+    print(f"Server is listening on {HOST}:{PORT}...")
 
-    # 유저 메시지 추가
-    messages.append({"role": "user", "content": user_input})
-
-    # 매 3번째 대화마다 우울증 설문 프롬프트 추가
-    if message_count % 3 == 0:
-        if num == 9:
+    conn, addr = s.accept()
+    with conn:
+        print(f"Connected by {addr}")
+    while True:
+        # 클라이언트로부터 메시지 수신
+        data = conn.recv(1024)
+        if not data:
             break
-        depression_prompt = depression_questions[num]
-        messages.append({"role": "system", "content": depression_prompt})
-        num += 1
 
-    if message_count % 3 == 1 and message_count > 1:
-        # 사용자 입력에서 날짜 관련 텍스트를 찾아서 점수 할당
-        score = extract_score(user_input)
-        depression_score += score
+        user_input = data.decode()
 
-    # 입력 텍스트 포맷팅
-    formatted_input = format_chat(messages)
+        if user_input.lower() in ["exit", "quit", "종료"]:
+            print("Chatbot: 대화를 종료합니다.")
+            break
 
-    # 입력 텍스트 토큰화
-    input_ids = tokenizer.encode(formatted_input, return_tensors="pt").to(device)
+        message_count += 1  # 메시지 카운트 증가
 
-    # 응답 생성
-    outputs = model.generate(
-        input_ids,
-        max_new_tokens=64,
-        eos_token_id=tokenizer.eos_token_id,
-        pad_token_id=tokenizer.eos_token_id,
-        do_sample=True,
-        temperature=0.7,
-        top_p=0.9,
-        top_k=50,
-    )
+        # 유저 메시지 추가
+        messages.append({"role": "user", "content": user_input})
 
-    if message_count % 3 == 0:
-        messages.pop()
+        # 매 3번째 대화마다 우울증 설문 프롬프트 추가
+        if message_count % 3 == 0:
+            if num == 9:
+                break
+            depression_prompt = depression_questions[num]
+            messages.append({"role": "system", "content": depression_prompt})
+            num += 1
 
-    # 모델의 응답 추출 및 디코딩
-    response = outputs[0][input_ids.shape[-1]:]
-    decoded_response = tokenizer.decode(response, skip_special_tokens=True)
+        if message_count % 3 == 1 and message_count > 1:
+            # 사용자 입력에서 날짜 관련 텍스트를 찾아서 점수 할당
+            score = extract_score(user_input)
+            depression_score += score
 
-    # 불필요한 텍스트 제거
-    decoded_response = decoded_response.replace("사용자:", "").replace("챗봇:", "").strip()
+        # 입력 텍스트 포맷팅
+        formatted_input = format_chat(messages)
 
-    if "\n" in decoded_response:
-        decoded_response = decoded_response.split("\n")[0].strip()
+        # 입력 텍스트 토큰화
+        input_ids = tokenizer.encode(formatted_input, return_tensors="pt").to(device)
 
-    # 챗봇 응답 출력 및 음성 출력
-    print(f"Chatbot: {decoded_response}")
+        # 응답 생성
+        outputs = model.generate(
+            input_ids,
+            max_new_tokens=64,
+            eos_token_id=tokenizer.eos_token_id,
+            pad_token_id=tokenizer.eos_token_id,
+            do_sample=True,
+            temperature=0.7,
+            top_p=0.9,
+            top_k=50,
+        )
 
-    # 챗봇 응답을 메시지 목록에 추가
-    messages.append({"role": "assistant", "content": decoded_response})
+        if message_count % 3 == 0:
+            messages.pop()
 
-print(f"End, Score is {depression_score}")
+        # 모델의 응답 추출 및 디코딩
+        response = outputs[0][input_ids.shape[-1]:]
+        decoded_response = tokenizer.decode(response, skip_special_tokens=True)
+
+        # 불필요한 텍스트 제거
+        decoded_response = decoded_response.replace("사용자:", "").replace("챗봇:", "").strip()
+
+        if "\n" in decoded_response:
+            decoded_response = decoded_response.split("\n")[0].strip()
+
+        # 챗봇 응답 출력 및 음성 출력
+        print(f"Chatbot: {decoded_response}")
+
+        # 챗봇 응답을 메시지 목록에 추가
+        messages.append({"role": "assistant", "content": decoded_response})
+
+        conn.sendall(response.encode())
+
+    print(f"End, Score is {depression_score}")
