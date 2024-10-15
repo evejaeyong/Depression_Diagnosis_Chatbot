@@ -12,6 +12,7 @@ conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvi
 ```
 
 "exit" 입력 시 코드 종료 후, 우울증 진단 score 출력
+
 대화 중 3번째 답변마다 우울증 관련 질문을 시작
 
 
