@@ -1,16 +1,21 @@
 import re
-import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM
+# import torch
+# from transformers import AutoTokenizer, AutoModelForCausalLM
 
-model_id = "teddylee777/EEVE-Korean-Instruct-10.8B-v1.0-gguf"
-filename = "EEVE-Korean-Instruct-10.8B-v1.0-Q8_0.gguf"
+# model_id = "teddylee777/EEVE-Korean-Instruct-10.8B-v1.0-gguf"
+# filename = "EEVE-Korean-Instruct-10.8B-v1.0-Q8_0.gguf"
 
-tokenizer = AutoTokenizer.from_pretrained(model_id, gguf_file=filename)
-model = AutoModelForCausalLM.from_pretrained(model_id, gguf_file=filename)
+# tokenizer = AutoTokenizer.from_pretrained(model_id, gguf_file=filename)
+# model = AutoModelForCausalLM.from_pretrained(model_id, gguf_file=filename)
 
-# 모델을 GPU로 이동 (필요한 경우)
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model.to(device)
+# # 모델을 GPU로 이동 (필요한 경우)
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# model.to(device)
+
+from langchain_ollama import OllamaLLM
+
+# Ollama 모델 설정
+llm = OllamaLLM(model="Depression-chatbot:latest")
 
 messages = [
     {"role": "system", "content": "너는 일상적인 대화를 하는 한국어 챗봇이야."},
@@ -126,30 +131,28 @@ while True:
     # 입력 텍스트 포맷팅
     formatted_input = format_chat(messages)
 
-    # 입력 텍스트 토큰화
-    input_ids = tokenizer.encode(formatted_input, return_tensors="pt").to(device)
+    # # 입력 텍스트 토큰화
+    # input_ids = tokenizer.encode(formatted_input, return_tensors="pt").to(device)
+    # # 응답 생성
+    # outputs = model.generate(
+    #     input_ids,
+    #     max_new_tokens=64,
+    #     eos_token_id=tokenizer.eos_token_id,
+    #     pad_token_id=tokenizer.eos_token_id,
+    #     do_sample=True,
+    #     temperature=0.7,
+    #     top_p=0.9,
+    #     top_k=50,
+    # )
 
-    # 응답 생성
-    outputs = model.generate(
-        input_ids,
-        max_new_tokens=64,
-        eos_token_id=tokenizer.eos_token_id,
-        pad_token_id=tokenizer.eos_token_id,
-        do_sample=True,
-        temperature=0.7,
-        top_p=0.9,
-        top_k=50,
-    )
+    # Ollama 모델로 응답 생성
+    outputs = llm.invoke(formatted_input)
 
     if message_count % 3 == 0:
         messages.pop()
 
-    # 모델의 응답 추출 및 디코딩
-    response = outputs[0][input_ids.shape[-1]:]
-    decoded_response = tokenizer.decode(response, skip_special_tokens=True)
-
     # 불필요한 텍스트 제거
-    decoded_response = decoded_response.replace("사용자:", "").replace("챗봇:", "").strip()
+    decoded_response = outputs.replace("사용자:", "").replace("챗봇:", "").strip()
 
     if "\n" in decoded_response:
         decoded_response = decoded_response.split("\n")[0].strip()
