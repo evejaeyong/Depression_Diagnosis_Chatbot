@@ -33,6 +33,24 @@ pip install pygame
 
 현재는 마이크에서 입력을 받은대로 음성을 생성하는 식으로 구현
 
+## Ollama (Chatbot, STT, TTS)
+
+### Python version
+
+- Python 3.7
+
+```
+conda install pip
+pip install huggingface-hub
+pip install SpeechRecognition
+pip install gtts
+pip install pygame
+pip install langchain-ollama
+
+```
+
+Ollama 사용으로 Chatbot을 로컬에서 작동이 가능해서 전체 코드를 합쳐서 구현
+
 ## Ollama 허깅페이스 연동
 
 0. `pip install huggingface-hub`
