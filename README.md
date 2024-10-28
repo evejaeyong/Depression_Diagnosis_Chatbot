@@ -37,11 +37,14 @@ pip install pygame
 
 0. `pip install huggingface-hub`
 
-1. 모델 다운로드 후 "Modelfile" 동레벨에 저장
+1. ollama 다운로드
+   https://ollama.com/download
+
+2. 모델 다운로드 후 "Modelfile" 동레벨에 저장
    https://huggingface.co/teddylee777/EEVE-Korean-Instruct-10.8B-v1.0-gguf/blob/main/EEVE-Korean-Instruct-10.8B-v1.0-Q8_0.gguf
 
-2. `ollama create Depression-chatbot -f Depression_Diagnosis_Chatbot/Modelfile` 코드 실행으로 모델 생성
+3. Modelfile이 있는 경로에서 `ollama create Depression-chatbot -f Modelfile` 코드 실행으로 모델 생성
 
-3. `ollama list`로 생성된 모델 확인 가능
+4. `ollama list`로 생성된 모델 확인 가능
 
 참고자료: https://www.youtube.com/watch?v=VkcaigvTrug&t=68s

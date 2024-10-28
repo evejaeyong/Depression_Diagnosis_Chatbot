@@ -5,23 +5,7 @@ import os
 
 # 음성 인식 객체 생성
 recognizer = sr.Recognizer()
-def speak(text):
-    # TTS
-    tts = gTTS(text=text, lang='ko')
-    tts.save("audio.mp3")
 
-    # pygame으로 오디오 재생
-    pygame.mixer.init()
-    pygame.mixer.music.load("audio.mp3")
-    pygame.mixer.music.play()
-
-    while pygame.mixer.music.get_busy():  # 음악이 재생 중일 때까지 대기
-        pygame.time.Clock().tick(10)
-
-    pygame.mixer.music.stop()
-    pygame.mixer.quit()
-    # 파일 삭제
-    os.remove("audio.mp3")
 
 # 마이크를 음성 입력 소스로 사용
 with sr.Microphone() as source:
