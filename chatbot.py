@@ -1,16 +1,12 @@
 import re
-import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from langchain_ollama import OllamaLLM
+import speech_recognition as sr
+from gtts import gTTS
+import pygame
+import os
 
-model_id = "teddylee777/EEVE-Korean-Instruct-10.8B-v1.0-gguf"
-filename = "EEVE-Korean-Instruct-10.8B-v1.0-Q8_0.gguf"
-
-tokenizer = AutoTokenizer.from_pretrained(model_id, gguf_file=filename)
-model = AutoModelForCausalLM.from_pretrained(model_id, gguf_file=filename)
-
-# 모델을 GPU로 이동 (필요한 경우)
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model.to(device)
+# Ollama 모델 설정
+llm = OllamaLLM(model="Depression-chatbot:latest")
 
 messages = [
     {"role": "system", "content": "너는 일상적인 대화를 하는 한국어 챗봇이야."},
@@ -61,6 +57,24 @@ score_mapping = {
     '한참 동안': 3, '오랜 시간': 3, '오랜 기간': 3,
 }
 
+def speak(text):
+    # TTS
+    tts = gTTS(text=text, lang='ko')
+    tts.save("audio.mp3")
+
+    # pygame으로 오디오 재생
+    pygame.mixer.init()
+    pygame.mixer.music.load("audio.mp3")
+    pygame.mixer.music.play()
+
+    while pygame.mixer.music.get_busy():  # 음악이 재생 중일 때까지 대기
+        pygame.time.Clock().tick(10)
+
+    pygame.mixer.music.stop()
+    pygame.mixer.quit()
+    # 파일 삭제
+    os.remove("audio.mp3")
+
 def extract_score(user_input):
     for keyword, score in score_mapping.items():
         if keyword in user_input:
@@ -80,7 +94,6 @@ def extract_score(user_input):
             return 3
     # 해당하는 표현이 없을 경우 기본값 반환
     return 0
-
 def format_chat(messages):
     # 메시지를 적절한 형식으로 변환
     formatted_text = ""
@@ -97,67 +110,70 @@ def format_chat(messages):
 num = 0
 message_count = 0  # 메시지 카운터 초기화
 depression_score = 0
+recognizer = sr.Recognizer()
 
-while True:
-    # 유저 입력 받기
-    user_input = input("You: ")
-    if user_input.lower() in ["exit", "quit", "종료"]:
-        print("Chatbot: 대화를 종료합니다.")
-        break
 
-    message_count += 1  # 메시지 카운트 증가
+with sr.Microphone() as source:
+    recognizer.adjust_for_ambient_noise(source)
+    try:
+        while True:
+            # 음성 인식
+            print("You:", end=" ")
+            audio = recognizer.listen(source)
 
-    # 유저 메시지 추가
-    messages.append({"role": "user", "content": user_input})
+            try:
+                # 음성을 텍스트로 변환
+                user_input = recognizer.recognize_google(audio, language='ko-KR')
+                print(user_input)
 
-    # 매 3번째 대화마다 우울증 설문 프롬프트 추가
-    if message_count % 3 == 0:
-        if num == 9:
-            break
-        depression_prompt = depression_questions[num]
-        messages.append({"role": "system", "content": depression_prompt})
-        num += 1
+                if user_input.lower() in ["exit", "quit", "종료"]:
+                    print("Chatbot: 대화를 종료합니다.")
+                    break
 
-    if message_count % 3 == 1 and message_count > 1:
-        # 사용자 입력에서 날짜 관련 텍스트를 찾아서 점수 할당
-        score = extract_score(user_input)
-        depression_score += score
+                message_count += 1  # 메시지 카운트 증가
 
-    # 입력 텍스트 포맷팅
-    formatted_input = format_chat(messages)
+                # 유저 메시지 추가
+                messages.append({"role": "user", "content": user_input})
 
-    # 입력 텍스트 토큰화
-    input_ids = tokenizer.encode(formatted_input, return_tensors="pt").to(device)
+                # 매 3번째 대화마다 우울증 설문 프롬프트 추가
+                if message_count % 3 == 0:
+                    if num == 9:
+                        break
+                    depression_prompt = depression_questions[num]
+                    messages.append({"role": "system", "content": depression_prompt})
+                    num += 1
 
-    # 응답 생성
-    outputs = model.generate(
-        input_ids,
-        max_new_tokens=64,
-        eos_token_id=tokenizer.eos_token_id,
-        pad_token_id=tokenizer.eos_token_id,
-        do_sample=True,
-        temperature=0.7,
-        top_p=0.9,
-        top_k=50,
-    )
+                if message_count % 3 == 1 and message_count > 1:
+                    # 사용자 입력에서 날짜 관련 텍스트를 찾아서 점수 할당
+                    score = extract_score(user_input)
+                    depression_score += score
 
-    if message_count % 3 == 0:
-        messages.pop()
+                # 입력 텍스트 포맷팅
+                formatted_input = format_chat(messages)
 
-    # 모델의 응답 추출 및 디코딩
-    response = outputs[0][input_ids.shape[-1]:]
-    decoded_response = tokenizer.decode(response, skip_special_tokens=True)
+                # Ollama 모델로 응답 생성
+                outputs = llm.invoke(formatted_input)
 
-    # 불필요한 텍스트 제거
-    decoded_response = decoded_response.replace("사용자:", "").replace("챗봇:", "").strip()
+                if message_count % 3 == 0:
+                    messages.pop()
 
-    if "\n" in decoded_response:
-        decoded_response = decoded_response.split("\n")[0].strip()
+                # 불필요한 텍스트 제거
+                decoded_response = outputs.replace("사용자:", "").replace("챗봇:", "").strip()
 
-    # 챗봇 응답 출력 및 음성 출력
-    print(f"Chatbot: {decoded_response}")
+                if "\n" in decoded_response:
+                    decoded_response = decoded_response.split("\n")[0].strip()
 
-    # 챗봇 응답을 메시지 목록에 추가
-    messages.append({"role": "assistant", "content": decoded_response})
+                print(f"Chatbot: {decoded_response}")
+
+                # 챗봇 응답을 TTS로 출력
+                speak(decoded_response)
+                messages.append({"role": "assistant", "content": decoded_response})
+
+            except sr.UnknownValueError:
+                print("could not understand the audio")
+            except sr.RequestError as e:
+                print(f"Could not request results; {e}")
+    except KeyboardInterrupt:
+        print("Exit")
 
 print(f"End, Score is {depression_score}")
