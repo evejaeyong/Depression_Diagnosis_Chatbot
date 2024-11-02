@@ -112,7 +112,6 @@ message_count = 0  # 메시지 카운터 초기화
 depression_score = 0
 recognizer = sr.Recognizer()
 
-
 with sr.Microphone() as source:
     recognizer.adjust_for_ambient_noise(source)
     try:
