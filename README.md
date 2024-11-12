@@ -44,7 +44,7 @@ conda install pip
 pip install huggingface-hub
 pip install SpeechRecognition
 pip install gtts
-pip install pygame
+pip install Pygame
 pip install langchain-ollama
 
 ```
