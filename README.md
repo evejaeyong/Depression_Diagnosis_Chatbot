@@ -36,7 +36,7 @@
 - 언어: Python
 - 라이브러리:
   - `speech_recognition`, `gTTS`
-  - `socket`, `re`, `datetime` 등
+  - `socket`, `re`, `datetime`, `huggingface` 등
 - 모델: Hugging Face LLM (`EEVE-Korean-Instruct-10.8B`)
 - 구조: 클라이언트-서버 통신 기반 설계 (TCP 소켓)
 - 플랫폼: Ubuntu / Windows 환경 모두 테스트함.
