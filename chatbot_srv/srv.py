@@ -110,8 +110,6 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     conn, addr = s.accept()
     with conn:
         print(f"Connected by {addr}")
-    while True:
-        # 클라이언트로부터 메시지 수신
         data = conn.recv(1024)
         if not data:
             break
